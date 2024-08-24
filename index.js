@@ -13,9 +13,11 @@ const ball = "b";
 const brick = "k";
 const bg = "g";
 
+let gameEnded = false;
+let newLevel = false;
 let score = 0;
-let ball_velocity_x = 1;
-let ball_velocity_y = 1;
+let ball_velocity_x = Math.random() < 0.5 ? -1 : 1;
+let ball_velocity_y = Math.random() < 0.5 ? -1 : 1;
 
 
 setLegend(
@@ -89,7 +91,7 @@ DDDDDDDDDDDDDDDD
 0000000000000000` ],
 );
 
-setSolids([player, ball, brick]);
+setSolids([player, ball]);
 setBackground(bg);
 
 let level = 0;
@@ -115,16 +117,28 @@ setPushables({
 });
 
 onInput("a", () => {
-  getAll(player).map(p=>p.x -= 2);
+  if (!gameEnded) getAll(player).map(p=>p.x -= 2);
 });
 onInput("d", () => {
-  getAll(player).map(p=>p.x += 2);
+  if (!gameEnded) getAll(player).map(p=>p.x += 2);
+});
+onInput("k", () => {
+  if (newLevel) {
+    setMap(levels[level]);
+    newLevel = false;
+  }
 });
 
 
 afterInput(() => {
   
 });
+
+
+function updateScore() {
+  clearText();
+  addText(String(score), { x: 0, y: 0, color: color`7` });
+}
 
 
 const gameLoop = setInterval(function(){
@@ -138,11 +152,41 @@ const gameLoop = setInterval(function(){
   gameball.x += ball_velocity_x;
   gameball.y += ball_velocity_y;
 
-  // Check the new position
+  const isLost = gameball.y >= height() - 1;
+  if (isLost) {
+    clearInterval(gameLoop);
+    gameEnded = true;
+
+    addText("YOU LOST!", { x: 6, y: 11, color: color`3` });
+    
+    return;
+  }
+  
+  // Check the new position and change directions
   if (last_x_axis === gameball.x) ball_velocity_x *= -1;
   if (last_y_axis === gameball.y) ball_velocity_y *= -1;
 
+  const touchedBrick = tilesWith(ball)[0] ? tilesWith(ball)[0].find(sprite => sprite.type === brick) : null;
+  if (touchedBrick) {
+  ['+1', '-1'].forEach(offset => {
+    let block = getTile(touchedBrick.x + parseInt(offset), touchedBrick.y);
+    if (block.length > 0 && block[0].type === brick) block[0].remove();
+  });
+    
+     touchedBrick.remove();
+
+    score++;
+    
+     ball_velocity_x *= -1;
+     ball_velocity_y *= -1;
+  }
   
+  updateScore();
+
+  if (getAll(brick).length === 0) {
+    level++;
+    if (levels[level]) newLevel = true;
+  }
   
 }, 200);
 
