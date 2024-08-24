@@ -9,10 +9,13 @@ https://sprig.hackclub.com/gallery/getting_started
 */
 
 const player = "p";
+const power = "m";
 const ball = "b";
 const brick = "k";
 const bg = "g";
 
+let time_start = performance.now();
+let time_rest = 0;
 let gameEnded = false;
 let newLevel = false;
 let score = 0;
@@ -38,6 +41,23 @@ DDDDDDDDDDDDDDDD
 ................
 ................
 ................` ],
+  [ power, bitmap`
+9............9..
+.9..77777777...9
+...7777777777.9.
+..777777777777..
+.74444444444447.
+.74DD44DDD44D47.
+.7DDDDDDDDDDDD7.
+.7777778H777777.
+.777788888H7777.
+.7778H78H78H777.
+.778H778H778H75.
+.7777778H777755.
+..777778H77755..
+9..77778H7755...
+..9.77777555...9
+9............9..` ],
   [ ball, bitmap`
 ................
 ................
@@ -95,7 +115,8 @@ setSolids([player, ball]);
 setBackground(bg);
 
 let level = 0;
-const levels = [ map`
+const levels = [
+  map`
 ..............
 .kk.kk.kk.kk..
 ..............
@@ -108,7 +129,36 @@ const levels = [ map`
 ..............
 ..............
 ..............
-......pp......`];
+......pp......`,
+  map`
+..............
+.kkkkkkkkkkkk.
+..kkkkkkkkkk..
+...kkkkkkkk...
+....kkkkkk....
+.....kkk......
+......k.......
+......b.......
+..............
+..............
+..............
+..............
+......pp......`,
+  map`
+..............
+kkkkkk..kkkkkk
+kkkkk..kkkkkkk
+kkkkkk..kkkkkk
+kkkkkkk..kkkkk
+kkkkkkkk..kkkk
+kkkkkkkkk..kkk
+......b.......
+..............
+..............
+..............
+..............
+......pp......`,
+];
 
 setMap(levels[level]);
 
@@ -123,9 +173,11 @@ onInput("d", () => {
   if (!gameEnded) getAll(player).map(p=>p.x += 2);
 });
 onInput("k", () => {
-  if (newLevel) {
+  if (newLevel && gameEnded) {
+    time_start += (performance.now() - time_rest);
     setMap(levels[level]);
     newLevel = false;
+    gameEnded = false;
   }
 });
 
@@ -134,14 +186,8 @@ afterInput(() => {
   
 });
 
-
-function updateScore() {
-  clearText();
-  addText(String(score), { x: 0, y: 0, color: color`7` });
-}
-
-
 const gameLoop = setInterval(function(){
+  if (gameEnded) return;
   let gameball = getFirst(ball);
   
   // Store the pall position
@@ -168,10 +214,10 @@ const gameLoop = setInterval(function(){
 
   const touchedBrick = tilesWith(ball)[0] ? tilesWith(ball)[0].find(sprite => sprite.type === brick) : null;
   if (touchedBrick) {
-  ['+1', '-1'].forEach(offset => {
-    let block = getTile(touchedBrick.x + parseInt(offset), touchedBrick.y);
-    if (block.length > 0 && block[0].type === brick) block[0].remove();
-  });
+    if (level === 0) ['+1', '-1'].forEach(offset => {
+      let block = getTile(touchedBrick.x + parseInt(offset), touchedBrick.y);
+      if (block.length > 0 && block[0].type === brick) block[0].remove();
+    });
     
      touchedBrick.remove();
 
@@ -181,11 +227,29 @@ const gameLoop = setInterval(function(){
      ball_velocity_y *= -1;
   }
   
-  updateScore();
+  clearText();
+  addText(String(score), { x: 0, y: 0, color: color`7` });
+
+  let time_diff = (performance.now() - time_start) / 1000;
+  let time_minutes = Math.floor(time_diff / 60);
+  let time_seconds = Math.floor(time_diff % 60);
+  let time_string = time_minutes > 0 ? `${time_minutes}m ${time_seconds}s` : `${time_seconds}s`;
+  addText(time_string, { x: 10 - Math.floor(time_string.length / 2), y: 0, color: color`9` });
+  
+  addText(String(level+1), { x: 19, y: 0, color: color`5` });
 
   if (getAll(brick).length === 0) {
     level++;
-    if (levels[level]) newLevel = true;
+    gameEnded = true;
+    if (levels[level]) {
+      addText(`lvl.${level} completed!`, { x: 2, y: 10, color: color`4` });
+      addText("Next level click K", { x: 1, y: 11, color: color`8` });
+      newLevel = true;
+      time_rest = performance.now();
+    } else {
+      addText(`YOU WON!`, { x: 6, y: 10, color: color`4` });
+      clearInterval(gameLoop);
+    }
   }
   
 }, 200);
