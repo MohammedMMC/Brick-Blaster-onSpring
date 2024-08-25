@@ -1,11 +1,8 @@
 /*
-First time? Check out the tutorial game:
-https://sprig.hackclub.com/gallery/getting_started
-
-@title: 
-@author: 
-@tags: []
-@addedOn: 2024-00-00
+@title: Brick Blaster
+@author: MohammedMMc
+@tags: ["brick", "blaster", "brick-blaster"]
+@addedOn: 2024-25-8
 */
 
 const playerLowTime = "l";
@@ -15,6 +12,7 @@ const ball = "b";
 const brick = "k";
 const bg = "g";
 
+let time_start_power = 0;
 let time_start = performance.now();
 let time_rest = 0;
 let gameEnded = false;
@@ -154,8 +152,8 @@ const levels = [
 ..kkkkkkkkkk..
 ...kkkkkkkk...
 ....kkkkkk....
-.....kkk......
-......k.......
+.....kkkk.....
+......kk......
 ......b.......
 ..............
 ..............
@@ -163,7 +161,7 @@ const levels = [
 ..............
 ......pp......`,
     map`
-..............
+......m.......
 kkkkkk..kkkkkk
 kkkkk..kkkkkkk
 kkkkkk..kkkkkk
@@ -176,6 +174,20 @@ kkkkkkkkk..kkk
 ..............
 ..............
 ......pp......`,
+    map`
+......m.......
+..............
+.k...k..kkkkk.
+.k...k....k...
+.k...k....k...
+.k...k....k...
+.kkkkk....k...
+.k...kb...k...
+.k...k....k...
+.k...k....k...
+.k...k..kkkkk.
+..............
+......pp......`,
 ];
 
 setMap(levels[level]);
@@ -185,10 +197,16 @@ setMap(levels[level]);
 //});
 
 onInput("a", () => {
-    if (!gameEnded) getAll(player).map(p => p.x -= 2);
+    if (!gameEnded) {
+        getAll(player).forEach(p => p.x -= (time_start_power === 0 ? 2 : 4));
+        getAll(playerLowTime).forEach(p => p.x -= (time_start_power === 0 ? 2 : 4));
+    };
 });
 onInput("d", () => {
-    if (!gameEnded) getAll(player).map(p => p.x += 2);
+    if (!gameEnded) {
+        getAll(player).forEach(p => p.x += (time_start_power === 0 ? 2 : 4));
+        getAll(playerLowTime).forEach(p => p.x += (time_start_power === 0 ? 2 : 4));
+    }
 });
 onInput("k", () => {
     if (newLevel && gameEnded) {
@@ -207,9 +225,7 @@ afterInput(() => {
 
 // For the powers
 
-let time_start_power = 0;
 function givePower() {
-    console.log("give power");
     time_start_power = performance.now();
 
     const all_players = getAll(player);
@@ -234,7 +250,7 @@ setInterval(function () {
 
 setInterval(function () {
     if (gameEnded) return;
-    const time_power_have = ((performance.now() - time_start_power) / 1000) % 60;
+    const time_power_have = time_start_power !== 0 ? ((performance.now() - time_start_power) / 1000) % 60 : null;
 
     if (time_power_have && time_power_have >= 5) {
         // Remove the power
@@ -242,38 +258,39 @@ setInterval(function () {
         if (all_players_low_time) {
             all_players_low_time.forEach(p => p.remove());
         }
+        time_start_power = 0;
     } else if (time_power_have && time_power_have >= 3) {
         // Change Player Style
         const all_players = getAll(player);
-        const first_player = all_players[0];
-        const last_player = all_players[all_players.length - 1];
-        first_player.remove();
-        last_player.remove();
-        addSprite(first_player.x - 1, first_player.y, player_low_time);
-        addSprite(last_player.x + 1, first_player.y, player_low_time);
+        if (all_players.length > 2) {
+            const first_player = all_players[all_players.map(p => p.x).indexOf(Math.min(...all_players.map(p => p.x)))];
+            const last_player = all_players[all_players.map(p => p.x).indexOf(Math.max(...all_players.map(p => p.x)))];
+
+            first_player.remove();
+            last_player.remove();
+            addSprite(first_player.x, first_player.y, playerLowTime);
+            addSprite(last_player.x, first_player.y, playerLowTime);
+        }
     } else if (time_power_have) {
         // normal style
         const all_players_low_time = getAll(playerLowTime);
-        if (all_players_low_time) {
+        if (all_players_low_time.length > 0) {
             all_players_low_time.forEach(p => {
                 p.remove();
                 addSprite(p.x, p.y, player);
             });
-
         }
     }
 
     // Check for claiming the power
-    getAll(player).forEach(p => {
-        tilesWith(p).forEach(tile => {
-            const powerSprite = tile.find(sprite => sprite.type === power);
-            if (powerSprite) {
-                powerSprite.remove();
-                givePower();
-            }
-        });
+    tilesWith(player).forEach(tile => {
+        const powerSprite = tile.find(sprite => sprite.type === power);
+        if (powerSprite) {
+            powerSprite.remove();
+            givePower();
+        }
     });
-}, 180);
+}, 10);
 
 
 // Game Loop
@@ -311,7 +328,7 @@ const gameLoop = setInterval(function () {
         });
 
         touchedBrick.remove();
-        if (Math.floor(Math.random() * 10) + 1) { //  === 5
+        if (Math.floor(Math.random() * 10) + 1 === 5) {
             // OMG ur lucky you got number 5 its a 10% chance ! :D
             addSprite(touchedBrick.x, touchedBrick.y, power);
         }
@@ -348,3 +365,4 @@ const gameLoop = setInterval(function () {
     }
 
 }, 200);
+
